@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const agenda = require('./services/agenda');
+const authRoutes = require('./routes/auth.routes');
 const connectDB = require('./config/db'); // Import the DB connection
 
 // Import routes
@@ -31,6 +32,7 @@ connectDB().then(() => {
 // API Routes
 app.use('/api/emails', emailRoutes);
 app.use('/api/sequences', sequenceRoutes);
+app.use('/api/auth', authRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
