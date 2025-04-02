@@ -34,10 +34,10 @@ app.use('/api/emails', emailRoutes);
 app.use('/api/sequences', sequenceRoutes);
 app.use('/api/auth', authRoutes);
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok' });
-});
+app.get("/" , (req ,res ) => 
+    {
+        res.send('<h1>Server is running...</h1>');
+    });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
