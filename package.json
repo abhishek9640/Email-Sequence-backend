@@ -20,6 +20,7 @@
   "description": "Backend server for Email Marketing Sequence Builder",
   "dependencies": {
     "agenda": "^5.0.0",
+    "axios": "^1.8.4",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
