@@ -63,7 +63,6 @@ const SequenceSchema = new mongoose.Schema({
   }
 });
 
-// Update the updatedAt field on save
 SequenceSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();

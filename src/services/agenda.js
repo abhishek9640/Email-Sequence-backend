@@ -2,111 +2,100 @@ const Agenda = require('agenda');
 const nodemailer = require('nodemailer');
 const dotenv = require('dotenv');
 
-// Load environment variables
 dotenv.config();
 
-// Initialize Agenda with MongoDB connection
+// Initialize Agenda
 const mongoConnectionString = process.env.MONGODB_URI;
 const agenda = new Agenda({
   db: { address: mongoConnectionString, collection: 'agendaJobs' },
-  processEvery: '30 seconds'
+  processEvery: '10 seconds',
 });
 
-// Configure nodemailer
+// Nodemailer Transport
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
+  host: 'smtp.gmail.com',
   port: 465,
-  secure: true, // Use SSL
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
-  }
+    pass: process.env.EMAIL_PASSWORD,
+  },
 });
 
-// Define job for sending emails
-agenda.define('send-email', async job => {
+// Define Job
+agenda.define('send-email', async (job) => {
   const { recipient, subject, body, from } = job.attrs.data;
-  
+
+  console.log('📩 Executing job: send-email');
+  console.log('Job data:', job.attrs.data);
+
   try {
-    // Send email using nodemailer
     const mailOptions = {
       from: from || process.env.EMAIL_USER,
       to: recipient,
-      subject: subject,
-      html: body
+      subject,
+      html: body,
     };
-    
+
     const info = await transporter.sendMail(mailOptions);
-    console.log('Email sent:', info.messageId);
-    
+    console.log(' Email sent:', info.messageId);
     return info;
   } catch (error) {
-    console.error('Error sending email:', error);
+    console.error(' Error sending email:', error);
     throw error;
   }
 });
 
-// Global error handling for jobs
-agenda.on('error', (err) => {
-  console.error('Agenda error:', err);
-});
+// Event Logging
+agenda.on('start', (job) => console.log(` Job starting: ${job.attrs.name}`));
+agenda.on('complete', (job) => console.log(` Job complete: ${job.attrs.name}`));
+agenda.on('fail', (err, job) => console.log(` Job failed: ${job.attrs.name}`, err));
 
-// Function to start the agenda
+// Start Agenda
 const start = async () => {
   await agenda.start();
+  console.log('Agenda started...');
   return agenda;
 };
 
-// Function to schedule an email
+// Schedule Single Email
 const scheduleEmail = async (recipient, subject, body, delay) => {
-  try {
-    // Schedule the job to run after the specified delay (in seconds)
-    await agenda.schedule(`${delay} seconds`, 'send-email', {
-      recipient,
-      subject,
-      body,
-      scheduledAt: new Date()
-    });
-    
-    console.log(`Email scheduled to be sent to ${recipient} in ${delay} seconds`);
-    return true;
-  } catch (error) {
-    console.error('Error scheduling email:', error);
-    throw error;
-  }
+  const when = new Date(Date.now() + delay * 1000); // delay in ms
+  await agenda.schedule(when, 'send-email', {
+    recipient,
+    subject,
+    body,
+    scheduledAt: new Date(),
+  });
+
+  console.log(`📨 Email scheduled to ${recipient} in ${delay} seconds`);
 };
 
-// Function to process a sequence of emails
+// Process Sequence of Emails
 const processSequence = async (sequence, leadEmail) => {
-  try {
-    let currentDelay = 0;
-    
-    // Process each node in the sequence
-    for (const node of sequence.nodes) {
-      if (node.type === 'emailNode') {
-        // Schedule email with accumulated delay
-        await scheduleEmail(
-          leadEmail,
-          node.data.subject,
-          node.data.body,
-          currentDelay
-        );
-      } else if (node.type === 'delayNode') {
-        // Add delay in seconds
-        currentDelay += node.data.delaySeconds;
-      }
+  let currentDelay = 0;
+
+  for (const node of sequence.nodes) {
+    if (node.type === 'delayNode') {
+      currentDelay += node.data.delaySeconds;
+      console.log(` Added delay: ${node.data.delaySeconds}s (Total: ${currentDelay}s)`);
+    } else if (node.type === 'emailNode') {
+      await scheduleEmail(
+        leadEmail,
+        node.data.subject,
+        node.data.body,
+        currentDelay
+      );
+      console.log(`📧 Scheduled email to ${leadEmail} after ${currentDelay}s`);
     }
-    
-    return true;
-  } catch (error) {
-    console.error('Error processing sequence:', error);
-    throw error;
   }
+
+  return true;
 };
 
 module.exports = {
   agenda,
   start,
   scheduleEmail,
-  processSequence
-}; 
+  processSequence,
+};
